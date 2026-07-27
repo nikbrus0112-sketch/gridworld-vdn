@@ -22,9 +22,11 @@ def rolling_percentile(values, window, percentile):
     )
 
 
-def plot_training_metrics(
-    losses, episode_rewards, episode_lengths, epsilons, window=100
-):
+def plot_training_metrics(stats, window=100):
+    losses = stats[0]
+    episode_rewards = stats[1]
+    episode_lengths = stats[2]
+    epsilons = stats[3]
     """
     losses: list of loss values, one per training step
     episode_rewards: list of total reward per episode
@@ -128,4 +130,5 @@ if __name__ == "__main__":
     )
     fake_epsilons = np.maximum(0.05, 1.0 * (0.995 ** np.arange(300)))
 
-    plot_training_metrics(fake_losses, fake_rewards, fake_lengths, fake_epsilons)
+    stats = [fake_losses, fake_rewards, fake_lengths, fake_epsilons]
+    plot_training_metrics(stats)

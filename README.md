@@ -62,7 +62,7 @@ Extending to a two-agent cooperative gridworld (two agents, two goals, team-only
 The comparison is directly inspired by factored multi-agent RL approaches, particularly Prof. Chongjie Zhang's work on cooperative MARL with factorization structures.
 
 
-## Hyperparameters Day 2 Multi Agent IQL
+## Hyperparameters 
 grid_size = 5
 agents = 2
 layer_size = 64
@@ -73,9 +73,19 @@ epsilon_end = 0.05
 decay_rate = 0.99
 buffer_size = 5000
 warmup_period = 100
-batch_size = 32
+batch_size = 64
 gamma = 0.90
 target_update_frequency = 100
 max_steps_per_episode = 75
 
-Achieved 188 / 1000 successes in testing or 18.8% success rate
+IQL with better (forgot what it's called) rewards
+Achieved 177 / 1000 fails in testing
+82.3% success rate
+
+IQL with normal rewards
+Achieved 489 / 1000 fail in testing
+48.7% success rate
+
+VDN with normal reward
+Achieved 294 / 1000 fail in testing
+58.3% success rate
