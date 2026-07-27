@@ -78,14 +78,6 @@ gamma = 0.90
 target_update_frequency = 100
 max_steps_per_episode = 75
 
-IQL with better (forgot what it's called) rewards
-Achieved 177 / 1000 fails in testing
-82.3% success rate
-
-IQL with normal rewards
-Achieved 489 / 1000 fail in testing
-48.7% success rate
-
-VDN with normal reward
-Achieved 294 / 1000 fail in testing
-58.3% success rate
+over 10 training/test cycles:
+VDN success rate:
+IQL success rate:

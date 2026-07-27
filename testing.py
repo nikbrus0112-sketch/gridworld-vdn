@@ -72,13 +72,14 @@ env = Environment(config.grid_size, config.agents)
 vdn_successes = []
 iql_successes = []
 
-for _ in range(10):
+for i in range(100):
     vdn = VDN(config)
     networks, stats = vdn.train(env)
     # plot_training.plot_training_metrics(stats)
     stats, vdn_success = test(env, config.max_steps_per_episode, networks)
     # plot_training.plot_training_metrics(stats)
     vdn_successes.append(vdn_success)
+    print("vdn test #", i, " | ", vdn_success)
 
     iql = IQL(config)
     networks, stats = iql.train(env)
@@ -86,5 +87,6 @@ for _ in range(10):
     stats, iql_success = test(env, config.max_steps_per_episode, networks)
     # plot_training.plot_training_metrics(stats)
     iql_successes.append(iql_success)
+    print("iql test #", i, " | ", iql_success)
 
-print("vdn: ", sum(vdn_successes) / 10.0, "iql: ", sum(iql_successes) / 10.0)
+print("vdn: ", sum(vdn_successes) / 100.0, "iql: ", sum(iql_successes) / 100.0)

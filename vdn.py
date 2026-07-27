@@ -41,6 +41,7 @@ class VDN:
         )
         optimizer = torch.optim.Adam(combined_params, lr=self.config.learning_rate)
 
+        self.epsilon = self.config.epsilon
         total_steps = 0
         replay_buffer = []
         for episode in range(self.config.num_episodes):
@@ -64,7 +65,7 @@ class VDN:
 
                     # 2 pick action
                     #   select action based on Q values with epsilon-greedy policy
-                    if random.random() < self.config.epsilon:
+                    if random.random() < self.epsilon:
                         action = random.randint(0, 4)
                     else:
                         action = torch.argmax(Q_values).item()
@@ -155,9 +156,9 @@ class VDN:
 
             episode_rewards.append(episode_reward)
             episode_lengths.append(steps)
-            epsilon = max(
-                self.config.epsilon_end, self.config.epsilon * self.config.decay_rate
+            self.epsilon = max(
+                self.config.epsilon_end, self.epsilon * self.config.decay_rate
             )
-        epsilons.append(epsilon)
+        epsilons.append(self.epsilon)
         stats = [losses, episode_rewards, episode_lengths, epsilons]
         return networks, stats
