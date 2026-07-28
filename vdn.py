@@ -159,6 +159,6 @@ class VDN:
             self.epsilon = max(
                 self.config.epsilon_end, self.epsilon * self.config.decay_rate
             )
-        epsilons.append(self.epsilon)
+            epsilons.append(self.epsilon)
         stats = [losses, episode_rewards, episode_lengths, epsilons]
         return networks, stats

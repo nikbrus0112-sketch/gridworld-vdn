@@ -4,12 +4,13 @@ import random
 
 # Environment class - this is the gridworld environment that the agents will interact with
 class Environment:
-    def __init__(self, grid_size=5, num_agents=1):
+    def __init__(self, grid_size=5, num_agents=1, bonus=1):
         self.grid_size = grid_size
         self.num_agents = num_agents
         self.num_targets = num_agents
         self.agents = []
         self.targets = []
+        self.bonus = bonus
         self.reset()
 
     # method - reset() - resets the environment to a random state
@@ -77,9 +78,9 @@ class Environment:
         ]
 
         team_bonus = (
-            1 if all(target in self.agents for target in self.targets) else 0.0
+            self.bonus if all(target in self.agents for target in self.targets) else 0.0
         )  # change team bonus to +3 or +5
-        done = team_bonus == 1
+        done = team_bonus == self.bonus
 
         reward = shaping_rewards[0] + shaping_rewards[1] + team_bonus
         return reward, done
