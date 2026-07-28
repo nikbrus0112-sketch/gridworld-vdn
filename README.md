@@ -14,7 +14,7 @@ A 5x5 gridworld with no obstacles.
 
 **Day 1 (single agent):** one agent, one goal, four actions (up/down/left/right), `+1` reward on reaching the goal, `0` otherwise.
 
-**Day 2 (two agents):** two agents, two goals, five actions (up/down/left/right/wait). Agents cannot occupy the same cell. Reward is a single shared scalar per step: each agent's distance-based shaping reward summed across both agents, plus a team completion bonus awarded only when every goal is simultaneously occupied by a distinct agent. Both IQL and VDN train on this identical joint signal
+**Day 2 (two agents):** two agents, two goals, five actions (up/down/left/right/wait). Agents cannot occupy the same cell — a move into an already-occupied cell is blocked (agents are processed in index order, so a lower-indexed agent has movement priority in a contested step; a rare simultaneous-third-cell collision between two moving agents is not caught, a known accepted limitation). Reward is a single shared scalar per step: each agent's distance-based shaping reward (`+1`/`0`/`-1` for moving closer to/staying the same distance from/moving away from its nearest goal) summed across both agents, plus a team completion bonus awarded only when every goal is simultaneously occupied by a distinct agent. Both IQL and VDN train on this identical joint signal — IQL is not given privately-shaped, per-agent reward, since that would hand it an unfair shortcut around the credit-assignment problem VDN is designed to solve.
 
 ## Day 1: Single-agent DQN
 
@@ -49,6 +49,10 @@ Both algorithms share the same environment, network architecture, and hyperparam
 - **IQL:** each agent has its own Q-network, its own replay buffer, and its own optimizer. Each trains independently to predict the same shared joint reward, with no mechanism to separate its own contribution from its teammate's.
 - **VDN:** each agent still has its own Q-network, but transitions are stored in one shared replay buffer, and each agent's predicted Q-value for its taken action is summed into a single joint prediction (`Q1 + Q2`), trained against a single joint target (`reward + gamma * (max Q1' + max Q2')`) via one backward pass spanning both networks. This lets credit assignment to each agent emerge from the shared reward signal, without either agent seeing the other's individual contribution directly.
 
+### A significant early bug: epsilon never decayed
+
+An early refactor (splitting the training script into `IQL.py`/`vdn.py` classes) introduced a bug where action selection referenced the fixed `Config.epsilon` (always `1.0`) rather than a persisting, properly-decaying instance variable — meaning both algorithms trained under near-total random exploration for the entire run, never exploiting what they'd learned. This produced misleadingly poor and unstable results (success rates in the 20-50% range) until diagnosed and fixed by introducing a proper `self.epsilon` instance attribute, updated once per episode and referenced consistently at the action-selection step.
+
 ### Statistical methodology
 
 Single training runs proved unreliable indicators of an algorithm's true performance: run-to-run variance in final success rate (different random seed, same hyperparameters) was substantially larger than test-set sampling noise alone. Each reported result below is the mean and standard deviation of **20 independently trained networks per condition**, evaluated on 1000 fresh greedy-policy test episodes each, compared via a paired t-test (paired on matched train/test iteration).
@@ -59,19 +63,47 @@ With the wait action added (needed for an agent to hold position while its teamm
 
 Raising the team bonus resolved this cleanly:
 
-| Team bonus | VDN mean (± sd)   | IQL mean (± sd)   | VDN − IQL | p-value |
-| ---------- | ----------------- | ----------------- | --------- | ------- |
+| Team bonus | VDN mean (± sd) | IQL mean (± sd) | VDN − IQL | p-value |
+| ---------- | ---------------- | ---------------- | --------- | ------- |
 | 1          | 49.5% (± 11.9pp)  | 57.7% (± 13.3pp)  | −8.2pp    | 0.12 (not significant) |
 | 3          | 83.6% (± 8.8pp)   | 74.6% (± 12.0pp)  | +9.1pp    | 0.0037  |
 | 5          | 91.7% (± 5.3pp)   | 82.0% (± 9.6pp)   | +9.7pp    | 0.0020  |
 
-(All at `gamma = 0.9`, 20 runs per condition per algorithm.)
+(All at `gamma = 0.9`, `num_episodes = 1000`, `buffer_size = 5000`, 20 runs per condition per algorithm.)
 
 Raising the bonus both improved mean performance and *tightened* run-to-run variance for both algorithms — consistent with the coordination behavior becoming something training reliably discovers rather than sometimes discovers. Notably, IQL's variance stayed consistently higher than VDN's across every condition tested, independent evidence supporting the underlying mechanism: independent agents training against a shared, non-decomposed reward converge less reliably than agents whose network structure performs credit assignment for them.
 
+Following this trend further — a larger team bonus (`11`), more training episodes (`1500`), and a smaller replay buffer (`2500`, favoring more recent, less-stale experience given non-stationary teammates) — produced the final, best result:
+
+| Config | VDN mean (± sd) | IQL mean (± sd) | VDN − IQL | p-value |
+| ------ | ---------------- | ---------------- | --------- | ------- |
+| bonus=11, 1500 ep, buffer=2500 | 95.6% (± 3.65pp) | 86.8% (± 7.86pp) | +8.86pp | 1.4×10⁻⁶ |
+
+(range: VDN 80.7%–98.6%, IQL 60.5%–94.7%, across 20 runs per algorithm)
+
 ### Final result
 
-At `gamma = 0.9`, `team_bonus = 5` (the final configuration): **VDN outperforms IQL by ~9.7 percentage points on average (91.7% vs. 82.0% success), a statistically significant and consistently reproduced gap (p = 0.002, n = 20 runs per algorithm), with VDN also converging more reliably run-to-run** (5.3pp vs. 9.6pp standard deviation).
+**VDN outperforms IQL by ~8.9 percentage points on average (95.6% vs. 86.8% success), an extremely statistically significant and consistently reproduced gap (p ≈ 1.4×10⁻⁶, n = 20 runs per algorithm), with VDN also converging far more reliably run-to-run** (3.65pp vs. 7.86pp standard deviation — IQL's variance is more than double VDN's). This is the strongest and most consistent result obtained across every configuration tested, and is the final reported result for this project.
+
+**Final hyperparameters:**
+
+```python
+grid_size = 5
+agents = 2
+layer_size = 64
+learning_rate = 3e-4
+num_episodes = 1500
+epsilon = 1.0
+epsilon_end = 0.05
+decay_rate = 0.99
+buffer_size = 2500
+warmup_period = 100
+batch_size = 64
+gamma = 0.90
+target_update_frequency = 100
+max_steps_per_episode = 75
+bonus = 11
+```
 
 ## Repo structure
 
@@ -99,4 +131,5 @@ Ideas discussed during this project but scoped out to stay within the 1-2 day bu
 - **Fixed agent-to-goal assignment** — currently either agent may claim either goal (avoiding a combinatorial assignment problem); requiring agent 1 → goal 1 specifically would test whether IQL/VDN handle *implicit coordination on who goes where*, not just *when*, differently.
 - **Larger grid (e.g. 8x8)** to test whether VDN's advantage widens with longer coordination horizons — confounded by simultaneously increasing state-space size and difficulty for both algorithms, so a cleaner version of this test would be:
 - **Biased far-apart spawn positions on the existing 5x5 grid** — a cheaper way to stress-test long coordination/wait horizons without changing the state space size.
+- **Full two-pass collision resolution** — current collision handling can miss the case where two agents simultaneously target the same third, currently-empty cell; a known, accepted, rare edge case on this grid size.
 - **Randomized agent-processing order** — current collision resolution always gives agent 0 movement priority in a contested step; alternating or randomizing per-step would remove this minor asymmetry.
