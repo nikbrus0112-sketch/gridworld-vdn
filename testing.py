@@ -3,6 +3,7 @@ import statistics
 from VDN import VDN
 from IQL import IQL
 from Environment import Environment
+from plot_training import plot_training_metrics
 
 
 def test(env, max_steps_per_episode, networks):
@@ -36,7 +37,7 @@ def test(env, max_steps_per_episode, networks):
         episode_rewards.append(episode_reward)
         episode_lengths.append(steps)
         # wasted_steps.append(steps - optimal_steps)
-        if steps == max_steps_per_episode:
+        if steps > 8:
             failures += 1
     # for waste in wasted_steps:
     #     if waste > 0:
@@ -52,18 +53,18 @@ class Config:
         self.grid_size = 5
         self.agents = 2
         self.layer_size = 64
-        self.learning_rate = 3e-4
+        self.learning_rate = 7.54e-4
         self.num_episodes = 1500
-        self.epsilon = 1.0
+        self.epsilon = 1.01
         self.epsilon_end = 0.05
         self.decay_rate = 0.99
         self.buffer_size = 2500
         self.warmup_period = 100
         self.batch_size = 64
-        self.gamma = 0.90
+        self.gamma = 0.781
         self.target_update_frequency = 100
         self.max_steps_per_episode = 75
-        self.bonus = 11
+        self.bonus = 50
 
 
 config = Config()
@@ -77,9 +78,9 @@ env = Environment(config.grid_size, config.agents, config.bonus)
 for i in range(20):
     vdn = VDN(config)
     networks, stats = vdn.train(env)
-    # plot_training.plot_training_metrics(stats)
+    # plot_training_metrics(stats)
     stats, vdn_success = test(env, config.max_steps_per_episode, networks)
-    # plot_training.plot_training_metrics(stats)
+    # plot_training_metrics(stats)
     vdn_successes.append(vdn_success)
     print("vdn test #", i, " | ", vdn_success)
 
